@@ -1,0 +1,37 @@
+<?php
+
+namespace {{ namespace }};
+
+use Coyote6\LaravelSettings\Contracts\SettingName;
+
+/**
+ * {{ description }}
+ */
+enum {{ class }}: string implements SettingName
+{
+{{ cases }}
+
+    /**
+     * Get the human-readable name of this setting.
+     *
+     * @label Label
+     */
+    public function label(): string
+    {
+        return match ($this) {
+{{ labels }}
+        };
+    }
+
+    /**
+     * Get the value used when this setting has not been saved.
+     *
+     * @label Default
+     */
+    public function default(): mixed
+    {
+        return match ($this) {
+{{ defaults }}
+        };
+    }
+}

@@ -1,0 +1,73 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "coyote6/laravel-settings",
+    "description": "Site-wide and per-model settings for Laravel, stored in their own tables with real foreign keys and named by enums.",
+    "type": "library",
+    "keywords": ["laravel", "settings", "preferences", "enum"],
+    "homepage": "https://coyote6.com",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Tanner Naeher",
+            "email": "tanner@coyote6.com",
+            "homepage": "https://coyote6.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/filesystem": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.9",
+        "laravel/pint": "^1.27",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Coyote6\\LaravelSettings\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Coyote6\\LaravelSettings\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Coyote6\\LaravelSettings\\Providers\\SettingsServiceProvider"
+            ],
+            "aliases": {
+                "Settings": "Coyote6\\LaravelSettings\\Facades\\Settings"
+            }
+        }
+    },
+    "scripts": {
+        "lint": "pint --dirty",
+        "lint:check": "pint --test",
+        "types:check": "phpstan analyse",
+        "test": [
+            "@lint:check",
+            "@types:check",
+            "@php vendor/bin/pest"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
