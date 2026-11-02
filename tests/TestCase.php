@@ -39,12 +39,22 @@ abstract class TestCase extends Orchestra
     }
 
     /**
-     * Run the package's migration before each test.
+     * Start each test from an empty database, then run the package's migration.
      *
      * @label Define Database Migrations
+     *
+     * @ai db:wipe first because a real database (the CI MariaDB job) keeps
+     *     its tables and its migrations ledger between tests, unlike SQLite
+     *     in memory. The install tests drop and re-create the settings table
+     *     and run published copies of the migration; without the wipe the
+     *     ledger still says the migration ran while the table is gone, and
+     *     every later test fails with "table doesn't exist" (reproduced
+     *     with a file-based SQLite database, the same 28 failures as CI).
      */
     protected function defineDatabaseMigrations(): void
     {
+        $this->artisan('db:wipe')->run();
+
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
     }
 
