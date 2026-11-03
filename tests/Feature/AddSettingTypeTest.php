@@ -173,7 +173,10 @@ it('generates files that pass Pint', function () {
     $result = Process::path(dirname($pint, 3))->run([$pint, '--test', $dir]);
     $files->deleteDirectory($dir);
 
-    expect($result->output())->toContain('"result":"passed"');
+    // The exit code, not the text: Pint prints JSON when it detects an AI
+    // agent (AI_AGENT, CLAUDECODE) and plain text otherwise, as in CI. It
+    // exits 1 in both when a file fails.
+    expect($result->exitCode())->toBe(0, $result->output());
 });
 
 it('asks each question in a terminal', function () {
