@@ -19,6 +19,11 @@ Site-wide settings live in one `settings` table. Settings that belong to a
 model (each user, each client) live in a table per model, with a real
 foreign key to the owner, so deleting the owner deletes its settings.
 
+## Requirements
+
+- PHP 8.3 or later
+- Laravel 12 or 13
+- A database with JSON columns. The tests run on SQLite and MariaDB 11.
 
 ## Installation
 
@@ -120,7 +125,8 @@ setting()->site()->all();                  // ['theme' => 'dark', ...] (stored v
 ```
 
 Values may be anything `json_encode()` accepts: strings, numbers, booleans,
-arrays. They come back with the same type.
+arrays. They come back with the same type, except objects, which come back
+as arrays.
 
 `setting()` with no arguments returns the settings manager. The `Settings`
 facade gives the same methods:
@@ -206,8 +212,8 @@ Schema::create('client_settings', function (Blueprint $table) {
 });
 ```
 
-The unique index starts with the owner column, so one index serves "this
-client's settings", "this client's theme" and the foreign key.
+The unique index starts with the owner column, so the same index serves
+"this client's settings" and "this client's theme".
 
 **2. The enum**, `app/Enums/Settings/ClientSetting.php`: the same shape as
 the site enum (`implements SettingName`, `label()`, `default()`).
@@ -239,12 +245,18 @@ class Client extends Model
 **5. Register the type** in `config/settings.php`:
 
 ```php
+use App\Enums\Settings\ClientSetting;
+use App\Models\Client;
+use App\Models\Settings\ClientSettingValue;
+
+// ...
+
 'types' => [
     // settings:add-type adds entries below this line.
     'client' => [
-        'owner' => App\Models\Client::class,
-        'enum' => App\Enums\Settings\ClientSetting::class,
-        'model' => App\Models\Settings\ClientSettingValue::class,
+        'owner' => Client::class,
+        'enum' => ClientSetting::class,
+        'model' => ClientSettingValue::class,
     ],
 ],
 ```
@@ -330,6 +342,9 @@ default, so the extra lookup costs nothing otherwise.
 DB::table('settings')->where('name', 'theme')->update(['name' => 'color-theme']);
 ```
 
+Owned settings are renamed the same way in their own table, e.g.
+`client_settings`.
+
 ## How many queries
 
 Nothing is loaded until you read a setting. Each read loads that one setting
@@ -337,10 +352,31 @@ with one query and remembers it for the rest of the request, including when
 it has no stored value, so reading it again costs nothing. Saving and
 forgetting update that memory. Owned settings work the same way, per owner.
 
-`all()` is the exception: it always queries every stored row.
+`all()` is the exception: it always queries every stored row for the site,
+or for that owner.
 
 The memory is cleared between queued jobs (and Octane requests), so a
 long-running worker never serves values loaded for an earlier job.
+
+## Errors
+
+Each mistake throws its own exception from
+`Coyote6\LaravelSettings\Exceptions`, with a message that says what to fix:
+
+| Exception | When |
+|---|---|
+| `MissingSettingsOwner` | Saving or forgetting an owned setting with no current owner, or using an owner that has not been saved |
+| `UnregisteredSettingName` | The setting's enum is not in `config/settings.php`, or it belongs to another owner's settings |
+| `UnregisteredSettingsOwner` | The model has no settings type, more than one, or a resolver returned the wrong model |
+| `InvalidSettingsType` | An entry in `types` is incomplete, names the wrong kind of class, has an empty `owner_key`, or reuses another entry's enum |
+
+## Helper names
+
+The package defines `setting()` and `saveSetting()` only when no function
+with that name exists yet. Composer loads the package's helpers before your
+application boots, so if your application defines its own `setting()`,
+remove it: a helper file loaded later without a `function_exists()` check
+stops with a "Cannot redeclare" fatal error.
 
 ## Customising the generated files
 

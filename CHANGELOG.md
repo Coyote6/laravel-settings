@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-03
+
+First release.
+
 ### Added
 
 - Site-wide settings in a `settings` table (UUID `id`, unique `name`, JSON
@@ -48,3 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clear exceptions for a bad `types` entry (`InvalidSettingsType`), a model
   without exactly one type (`UnregisteredSettingsOwner`), and a setting used
   with another enum's settings (`UnregisteredSettingName`).
+
+[Unreleased]: https://github.com/Coyote6/laravel-settings/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Coyote6/laravel-settings/releases/tag/v1.0.0

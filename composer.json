@@ -5,6 +5,10 @@
     "type": "library",
     "keywords": ["laravel", "settings", "preferences", "enum"],
     "homepage": "https://coyote6.com",
+    "support": {
+        "issues": "https://github.com/Coyote6/laravel-settings/issues",
+        "source": "https://github.com/Coyote6/laravel-settings"
+    },
     "license": "MIT",
     "authors": [
         {
