@@ -9,7 +9,8 @@ if (! function_exists('setting')) {
      * Get a setting's value, or the settings manager when no name is given.
      *
      * The stored value wins; without one, $default is used, then the enum's
-     * own default().
+     * own default(). An owned setting (e.g. ClientSetting::Theme) is read for
+     * the current owner; with no current owner, the defaults are returned.
      *
      * @label Setting
      *
@@ -27,7 +28,7 @@ if (! function_exists('setting')) {
 
 if (! function_exists('saveSetting')) {
     /**
-     * Save a setting's value.
+     * Save a setting's value, for the current owner when the setting is owned.
      *
      * @label Save Setting
      *

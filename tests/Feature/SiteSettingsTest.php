@@ -10,29 +10,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Count the select queries run while the callback runs.
- *
- * @label Count Selects
- *
- * @param  Closure  $callback  The code to measure
- */
-function countSelects(Closure $callback): int
-{
-    DB::flushQueryLog();
-    DB::enableQueryLog();
-
-    $callback();
-
-    $selects = collect(DB::getQueryLog())
-        ->filter(fn (array $query) => str_starts_with(strtolower($query['query']), 'select'))
-        ->count();
-
-    DB::disableQueryLog();
-
-    return $selects;
-}
-
 it('returns the enum default when nothing is stored', function () {
     expect(setting(Setting::SiteName))->toBe('Default Site');
 });
@@ -183,13 +160,13 @@ it('reports whether a value is stored', function () {
     expect(setting()->has(Setting::Theme))->toBeTrue();
 });
 
-it('lists every stored site value', function () {
+it('lists every stored site value in name order', function () {
     saveSetting(Setting::SiteName, 'Scorebook');
     saveSetting(Setting::MaintenanceMode, true);
 
     expect(setting()->site()->all())->toBe([
-        'site-name' => 'Scorebook',
         'maintenance-mode' => true,
+        'site-name' => 'Scorebook',
     ]);
 });
 
@@ -235,7 +212,9 @@ it('allows only one row per setting name', function () {
 it('uses the table named in config', function () {
     $migrations = ['--path' => realpath(__DIR__.'/../../database/migrations'), '--realpath' => true];
 
-    $this->artisan('migrate:rollback', $migrations)->assertSuccessful();
+    // reset, not rollback: rollback undoes only the latest batch, and the
+    // fixture migrations run in a later batch than this one.
+    $this->artisan('migrate:reset', $migrations)->assertSuccessful();
     config(['settings.table' => 'site_settings']);
     $this->artisan('migrate', $migrations)->assertSuccessful();
 

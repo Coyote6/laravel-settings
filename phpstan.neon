@@ -4,6 +4,7 @@ includes:
 parameters:
     paths:
         - src
+        - tests/Fixtures
 
     level: 7
 

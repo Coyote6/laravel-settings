@@ -35,7 +35,16 @@ return [
     |--------------------------------------------------------------------------
     |
     | One entry per model that owns its own settings, such as users or
-    | clients. Each type has its own table with a foreign key to its owner.
+    | clients. Each type has its own table with a foreign key to its owner:
+    |
+    |     'client' => [
+    |         'owner' => App\Models\Client::class,
+    |         'enum' => App\Enums\Settings\ClientSetting::class,
+    |         'model' => App\Models\Settings\ClientSettingValue::class,
+    |     ],
+    |
+    | Add 'owner_key' => 'column' only when the settings table's owner column
+    | is not the owner's foreign key name (client_id for a Client).
     |
     */
 

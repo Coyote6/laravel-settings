@@ -3,8 +3,11 @@
 namespace Coyote6\LaravelSettings;
 
 use Coyote6\LaravelSettings\Contracts\SettingName;
+use Coyote6\LaravelSettings\Exceptions\UnregisteredSettingName;
 use Coyote6\LaravelSettings\Models\SettingValue;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * The stored settings for one scope: the whole site, or one owner.
@@ -35,11 +38,15 @@ class SettingsRepository
      * @label Construct
      *
      * @param  SettingValue  $model  An empty model whose table holds these settings
-     * @param  array<string, mixed>  $scope  Columns every row here shares, e.g. ['user_id' => 5]; empty for site settings
+     * @param  string  $enum  The class of the enum that names these settings, e.g. App\Enums\Settings\ClientSetting
+     * @param  Model|null  $owner  The model these settings belong to; null for site settings
+     * @param  string|null  $ownerKey  The column holding the owner's key; null means the owner's foreign key name, e.g. client_id
      */
     public function __construct(
         protected SettingValue $model,
-        protected array $scope = [],
+        protected string $enum,
+        protected ?Model $owner = null,
+        protected ?string $ownerKey = null,
     ) {}
 
     /**
@@ -52,6 +59,8 @@ class SettingsRepository
      *
      * @param  SettingName  $name  The setting to read, e.g. Setting::SiteName
      * @param  mixed  $default  The value to use when none is stored; null means "use the enum's default"
+     *
+     * @throws UnregisteredSettingName
      */
     public function get(SettingName $name, mixed $default = null): mixed
     {
@@ -71,19 +80,21 @@ class SettingsRepository
      *
      * @ai updateOrCreate() is safe when two requests save the same setting at
      *     once: firstOrCreate() falls back to createOrFirst(), which catches
-     *     the unique-index error and re-reads (Laravel 13.33,
-     *     Eloquent\Builder). It relies on the unique index on name (plus the
-     *     owner column for owned settings).
+     *     the unique-index error and re-reads (Laravel 13.39: Eloquent\Builder
+     *     for site settings, HasOneOrMany for owned ones). It relies on the
+     *     unique index on name, plus the owner column for owned settings.
      *
      * @param  SettingName  $name  The setting to save, e.g. Setting::SiteName
      * @param  mixed  $value  Anything json_encode() accepts, e.g. 'Scorebook'
+     *
+     * @throws UnregisteredSettingName
      */
     public function set(SettingName $name, mixed $value): SettingValue
     {
         $key = $this->nameOf($name);
 
-        $setting = $this->model->newQuery()->updateOrCreate(
-            [...$this->scope, 'name' => $key],
+        $setting = $this->query()->updateOrCreate(
+            ['name' => $key],
             ['value' => $value],
         );
 
@@ -101,6 +112,8 @@ class SettingsRepository
      * @label Has
      *
      * @param  SettingName  $name  The setting to check, e.g. Setting::SiteName
+     *
+     * @throws UnregisteredSettingName
      */
     public function has(SettingName $name): bool
     {
@@ -113,6 +126,8 @@ class SettingsRepository
      * @label Forget
      *
      * @param  SettingName  $name  The setting to delete, e.g. Setting::SiteName
+     *
+     * @throws UnregisteredSettingName
      */
     public function forget(SettingName $name): void
     {
@@ -132,11 +147,16 @@ class SettingsRepository
      *
      * @label All
      *
+     * @ai Ordered by name so every database returns the same order. Without
+     *     it, MariaDB returns an owner's rows in the order of the
+     *     (owner, name) unique index while SQLite returns them as inserted.
+     *
      * @return array<string, mixed>
      */
     public function all(): array
     {
         return $this->query()
+            ->orderBy('name')
             ->get(['name', 'value'])
             ->mapWithKeys(fn (SettingValue $setting) => [$setting->name => $setting->value])
             ->all();
@@ -174,37 +194,53 @@ class SettingsRepository
     }
 
     /**
-     * Get the name a setting is stored under.
+     * Get the name a setting is stored under, after checking it belongs here.
      *
      * @label Name Of
      *
-     * @ai Cast to string because SettingName can only require BackedEnum,
+     * @ai The enum check stops a setting from another enum reading or
+     *     writing this table, e.g. $client->setting(UserSetting::Theme). Both
+     *     enums may have a "theme" case, so without the check it would
+     *     silently use the client's row.
+     *
+     *     Cast to string because SettingName can only require BackedEnum,
      *     and PHP has no way to require a string-backed one. The name column
      *     is a string and the database returns string keys, so an int-backed
      *     enum's names are stored and compared as strings too.
      *
      * @param  SettingName  $name  The setting, e.g. Setting::SiteName
+     *
+     * @throws UnregisteredSettingName
      */
     protected function nameOf(SettingName $name): string
     {
+        if (! $name instanceof $this->enum) {
+            throw UnregisteredSettingName::wrongEnum($name, $this->enum);
+        }
+
         return (string) $name->value;
     }
 
     /**
-     * Get a query limited to this scope's rows.
+     * Get a query limited to this repository's rows.
      *
      * @label Query
      *
-     * @return Builder<SettingValue>
+     * @ai Owned settings are queried through the owner's hasMany relation.
+     *     Eloquent adds "where client_id = ?" to every query and sets
+     *     client_id itself when it creates a row
+     *     (HasOneOrMany::setForeignAttributesForCreate()), so the owner column
+     *     never has to be mass assignable. A new relation is built for every
+     *     query because where() on a relation changes that relation.
+     *
+     * @return Builder<SettingValue>|HasMany<SettingValue, Model>
      */
-    protected function query(): Builder
+    protected function query(): Builder|HasMany
     {
-        $query = $this->model->newQuery();
-
-        if ($this->scope !== []) {
-            $query->where($this->scope);
+        if ($this->owner === null) {
+            return $this->model->newQuery();
         }
 
-        return $query;
+        return $this->owner->hasMany($this->model::class, $this->ownerKey);
     }
 }

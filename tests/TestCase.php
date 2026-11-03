@@ -3,7 +3,13 @@
 namespace Coyote6\LaravelSettings\Tests;
 
 use Coyote6\LaravelSettings\Providers\SettingsServiceProvider;
+use Coyote6\LaravelSettings\Tests\Fixtures\Enums\ClientSetting;
 use Coyote6\LaravelSettings\Tests\Fixtures\Enums\Setting;
+use Coyote6\LaravelSettings\Tests\Fixtures\Enums\UserSetting;
+use Coyote6\LaravelSettings\Tests\Fixtures\Models\Client;
+use Coyote6\LaravelSettings\Tests\Fixtures\Models\Settings\ClientSettingValue;
+use Coyote6\LaravelSettings\Tests\Fixtures\Models\Settings\UserSettingValue;
+use Coyote6\LaravelSettings\Tests\Fixtures\Models\User;
 use Illuminate\Foundation\Application;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -25,7 +31,7 @@ abstract class TestCase extends Orchestra
     }
 
     /**
-     * Define the test environment: the test database and the fixture enum.
+     * Define the test environment: the test database, the fixture enum and the fixture types.
      *
      * @label Define Environment
      *
@@ -36,10 +42,22 @@ abstract class TestCase extends Orchestra
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', $this->databaseConnectionConfig());
         $app['config']->set('settings.enum', Setting::class);
+        $app['config']->set('settings.types', [
+            'user' => [
+                'owner' => User::class,
+                'enum' => UserSetting::class,
+                'model' => UserSettingValue::class,
+            ],
+            'client' => [
+                'owner' => Client::class,
+                'enum' => ClientSetting::class,
+                'model' => ClientSettingValue::class,
+            ],
+        ]);
     }
 
     /**
-     * Start each test from an empty database, then run the package's migration.
+     * Start each test from an empty database, then run the package's and the fixtures' migrations.
      *
      * @label Define Database Migrations
      *
@@ -56,6 +74,7 @@ abstract class TestCase extends Orchestra
         $this->artisan('db:wipe')->run();
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/Fixtures/database/migrations');
     }
 
     /**
@@ -70,9 +89,11 @@ abstract class TestCase extends Orchestra
      * @ai Not named test*(): Pint's php_unit_method_casing rule would rename
      *     a TestCase method starting with "test".
      *
-     *     foreign_key_constraints is set on purpose: SQLite leaves foreign
-     *     keys off unless the key is present in the connection array, and
-     *     phase 2 adds tables whose foreign keys the tests must enforce.
+     *     foreign_key_constraints is set in both arrays on purpose: SQLite
+     *     leaves foreign keys off unless the key is present
+     *     (SQLiteConnector), so a file-based SQLite run through DB_* would
+     *     skip the cascade-delete test's cascade. Only the SQLite connector
+     *     reads the key; MariaDB always enforces foreign keys.
      *
      * @return array<string, mixed>
      */
@@ -96,6 +117,7 @@ abstract class TestCase extends Orchestra
             'password' => env('DB_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            'foreign_key_constraints' => true,
         ];
     }
 }

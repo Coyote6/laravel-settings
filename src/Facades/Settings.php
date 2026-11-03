@@ -2,10 +2,12 @@
 
 namespace Coyote6\LaravelSettings\Facades;
 
+use Closure;
 use Coyote6\LaravelSettings\Contracts\SettingName;
 use Coyote6\LaravelSettings\Models\SettingValue;
 use Coyote6\LaravelSettings\SettingsManager;
 use Coyote6\LaravelSettings\SettingsRepository;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -13,6 +15,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static SettingValue set(SettingName $name, mixed $value)
  * @method static bool has(SettingName $name)
  * @method static void forget(SettingName $name)
+ * @method static SettingsRepository for(Model $owner)
+ * @method static void resolveOwnerUsing(string $owner, Closure $resolver)
  * @method static SettingsRepository site()
  *
  * @see SettingsManager

@@ -3,26 +3,32 @@
 namespace Coyote6\LaravelSettings\Providers;
 
 use Coyote6\LaravelSettings\Console\Commands\InstallSettings;
+use Coyote6\LaravelSettings\OwnerResolvers;
 use Coyote6\LaravelSettings\SettingsManager;
 use Illuminate\Support\ServiceProvider;
 
 class SettingsServiceProvider extends ServiceProvider
 {
     /**
-     * Merge the package config and bind the settings manager.
+     * Merge the package config and bind the settings manager and owner resolvers.
      *
      * @label Register
      *
-     * @ai scoped(), not singleton(): the manager keeps loaded values in
-     *     memory, and Laravel clears scoped instances between queued jobs
+     * @ai scoped(), not singleton(), for the manager: it keeps loaded values
+     *     in memory, and Laravel clears scoped instances between queued jobs
      *     (QueueServiceProvider calls forgetScopedInstances()) and between
      *     Octane requests, so a long-running worker never serves values
      *     loaded for an earlier job.
+     *
+     *     singleton() for the owner resolvers: they are registered once in a
+     *     service provider's boot(), so on the scoped manager they would be
+     *     lost after the first queued job.
      */
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../../config/settings.php', 'settings');
 
+        $this->app->singleton(OwnerResolvers::class);
         $this->app->scoped(SettingsManager::class);
     }
 
