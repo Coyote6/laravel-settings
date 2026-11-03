@@ -19,10 +19,6 @@ Site-wide settings live in one `settings` table. Settings that belong to a
 model (each user, each client) live in a table per model, with a real
 foreign key to the owner, so deleting the owner deletes its settings.
 
-> **Status:** site-wide and per-model settings work today. The
-> `settings:add-type` command that generates a model's settings table, enum
-> and model is in progress; until then, create them by hand as shown in
-> [Settings per model](#settings-per-model).
 
 ## Installation
 
@@ -143,12 +139,60 @@ its own table, its own enum and its own small model.
 
 ### Setting up a type
 
-Four files, then one line of config. This is what `settings:add-type` will
-write for you. The example is for clients.
+```bash
+php artisan settings:add-type Client
+```
+
+It asks for what you did not give, each with a default you can accept:
+
+1. **Which model?** Asked only when you leave it off. `Client` becomes
+   `App\Models\Client`; a full class name works too.
+2. **Which enum?** Default `App\Enums\Settings\ClientSetting`.
+3. **Which settings to start with?** Comma-separated, e.g.
+   `theme, text alerts` becomes `case Theme = 'theme'` and
+   `case TextAlerts = 'text-alerts'`. Every default starts as `null`.
+4. **Table name?** Default `client_settings`.
+
+Then it shows the owner column it detected, e.g.
+`client_settings.client_id → clients.id (uuid). Correct?`, and asks for
+another column only when you say no.
+
+It checks everything before writing anything, and refuses (writing nothing)
+when the model already has a type, a file it would write exists, or the
+table exists. Then it:
+
+- writes the migration, the enum and the model shown below
+- adds the type to `config/settings.php`, below the
+  `// settings:add-type adds entries below this line.` comment, with sorted
+  `use` imports so Pint leaves the file alone (a class whose short name is
+  already imported is written in full instead)
+- clears the config cache and asks whether to run that one migration
+- prints what is left: the `HasSettings` trait, and for owners other than
+  the logged-in user, a `Settings::resolveOwnerUsing()` line
+
+Every question is also an option, for scripts and CI:
+
+```bash
+php artisan settings:add-type Client --names=theme,text-alerts --table=client_settings --migrate
+```
+
+| Option | Default |
+|---|---|
+| `--enum=` | `App\Enums\Settings\ClientSetting` |
+| `--names=` | (required without a terminal) |
+| `--table=` | `client_settings` |
+| `--owner-key=` | the owner's foreign key name, `client_id` |
+| `--migrate` | without a terminal, the migration is not run |
+
+### What it writes
+
+The example is for clients. You can also write these by hand.
 
 **1. The migration.** `foreignIdFor()` reads the owner model and picks the
 right column type: `bigint` for integer ids, `uuid` for `HasUuids` models,
-`ulid` for `HasUlids` models.
+`ulid` for `HasUlids` models. For a model with a plain string key, which
+`foreignIdFor()` would make a `uuid` column, the command writes a `string`
+column and an explicit foreign key instead.
 
 ```php
 Schema::create('client_settings', function (Blueprint $table) {
@@ -304,8 +348,9 @@ long-running worker never serves values loaded for an earlier job.
 php artisan vendor:publish --tag=settings-stubs
 ```
 
-This copies the enum stub to `stubs/settings/`, where the commands will use
-your copy instead of the package's.
+This copies the enum, migration and model stubs to `stubs/settings/`,
+where `settings:install` and `settings:add-type` use your copy instead of
+the package's.
 
 ## Testing
 

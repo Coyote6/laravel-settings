@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by default, or whatever `Settings::resolveOwnerUsing(Client::class, fn ()
   => ...)` returns. With no current owner, reads return the defaults and
   saves throw `MissingSettingsOwner`.
+- `php artisan settings:add-type`: asks for the owner model, enum, starting
+  setting names and table (or takes them as options), confirms the detected
+  owner column, then writes the migration, enum and value model from stubs,
+  adds the type to `config/settings.php` with sorted imports, clears the
+  config cache and offers to run that one migration. It checks everything
+  first and writes nothing when the model already has a type or a file or
+  table already exists. Owners with a plain string key get a `string`
+  column and an explicit foreign key.
 - Clear exceptions for a bad `types` entry (`InvalidSettingsType`), a model
   without exactly one type (`UnregisteredSettingsOwner`), and a setting used
   with another enum's settings (`UnregisteredSettingName`).

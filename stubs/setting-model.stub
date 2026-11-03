@@ -1,0 +1,18 @@
+<?php
+
+namespace {{ namespace }};
+
+use Coyote6\LaravelSettings\Models\OwnedSettingValue;
+
+/**
+ * One stored {{ owner }} setting value.
+ */
+class {{ class }} extends OwnedSettingValue
+{
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = '{{ table }}';
+}

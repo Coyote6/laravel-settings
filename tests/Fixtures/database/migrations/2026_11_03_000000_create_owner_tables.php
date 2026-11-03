@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Create the owner tables: users with integer keys, clients with UUIDs.
+     * Create the owner tables: users (integer keys), clients (UUIDs), teams (ULIDs), accounts (plain strings).
      *
      * @label Up
      */
@@ -24,6 +24,17 @@ return new class extends Migration
             $table->string('name');
             $table->timestamps();
         });
+
+        Schema::create('teams', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->timestamps();
+        });
+
+        Schema::create('accounts', function (Blueprint $table) {
+            $table->string('code', 20)->primary();
+            $table->string('name');
+            $table->timestamps();
+        });
     }
 
     /**
@@ -33,6 +44,8 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('accounts');
+        Schema::dropIfExists('teams');
         Schema::dropIfExists('clients');
         Schema::dropIfExists('users');
     }

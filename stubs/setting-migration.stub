@@ -1,0 +1,34 @@
+<?php
+
+{{ imports }}
+
+return new class extends Migration
+{
+    /**
+     * Create the {{ table }} table: one row per stored {{ owner }} setting.
+     *
+     * @label Up
+     */
+    public function up(): void
+    {
+        Schema::create('{{ table }}', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('name', 100);
+{{ ownerColumn }}
+            $table->json('value')->nullable();
+            $table->timestamps();
+
+            $table->unique(['{{ ownerKey }}', 'name']);
+        });
+    }
+
+    /**
+     * Drop the {{ table }} table.
+     *
+     * @label Down
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('{{ table }}');
+    }
+};

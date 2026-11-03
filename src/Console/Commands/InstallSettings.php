@@ -2,17 +2,17 @@
 
 namespace Coyote6\LaravelSettings\Console\Commands;
 
+use Coyote6\LaravelSettings\Concerns\Console\WritesSettingFiles;
 use Illuminate\Console\Command;
-use Illuminate\Database\QueryException;
 use Illuminate\Filesystem\Filesystem;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 /**
  * Set up site-wide settings: config, migration and the Setting enum.
  */
 class InstallSettings extends Command
 {
+    use WritesSettingFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -45,10 +45,8 @@ class InstallSettings extends Command
 
         $this->createEnum($files);
 
-        if ($migration !== null && $this->shouldMigrate()) {
-            $this->call('migrate', [
-                '--path' => Str::after($migration, base_path().DIRECTORY_SEPARATOR),
-            ]);
+        if ($migration !== null && $this->shouldMigrate('Run the settings migration now?')) {
+            $this->runMigration($migration);
         }
 
         return self::SUCCESS;
@@ -126,15 +124,13 @@ class InstallSettings extends Command
     protected function createEnum(Filesystem $files): void
     {
         $class = ltrim(config()->string('settings.enum'), '\\');
-        $appNamespace = $this->laravel->getNamespace();
+        $path = $this->appClassPath($class);
 
-        if (! Str::startsWith($class, $appNamespace)) {
-            $this->components->warn("[{$class}] is outside the [{$appNamespace}] namespace, so it was not created. Create it by hand.");
+        if ($path === null) {
+            $this->components->warn("[{$class}] is outside the [{$this->laravel->getNamespace()}] namespace, so it was not created. Create it by hand.");
 
             return;
         }
-
-        $path = app_path(str_replace('\\', '/', Str::after($class, $appNamespace)).'.php');
 
         if ($files->exists($path)) {
             $this->components->twoColumnDetail($this->relativePath($path), '<fg=yellow;options=bold>EXISTS</>');
@@ -142,48 +138,9 @@ class InstallSettings extends Command
             return;
         }
 
-        $files->ensureDirectoryExists(dirname($path));
-        $files->put($path, $this->renderEnum($files, $class));
-
-        $this->components->twoColumnDetail($this->relativePath($path), '<fg=green;options=bold>CREATED</>');
-    }
-
-    /**
-     * Build the site enum's source from the enum stub.
-     *
-     * @label Render Enum
-     *
-     * @param  Filesystem  $files  The filesystem used to read the stub
-     * @param  string  $class  The enum's full class name, e.g. App\Enums\Settings\Setting
-     */
-    protected function renderEnum(Filesystem $files, string $class): string
-    {
-        return str_replace(
-            ['{{ namespace }}', '{{ class }}', '{{ description }}', '{{ cases }}', '{{ labels }}', '{{ defaults }}'],
-            [
-                Str::beforeLast($class, '\\'),
-                class_basename($class),
-                'The settings that belong to the whole site.',
-                "    case SiteName = 'site-name';",
-                "            self::SiteName => 'Site Name',",
-                "            self::SiteName => config('app.name'),",
-            ],
-            $files->get($this->stubPath('setting-enum.stub')),
-        );
-    }
-
-    /**
-     * Get a stub's path, preferring the application's published copy.
-     *
-     * @label Stub Path
-     *
-     * @param  string  $stub  The stub's file name, e.g. setting-enum.stub
-     */
-    protected function stubPath(string $stub): string
-    {
-        $published = base_path("stubs/settings/{$stub}");
-
-        return file_exists($published) ? $published : __DIR__."/../../../stubs/{$stub}";
+        $this->writeFile($files, $path, $this->renderEnum($files, $class, 'The settings that belong to the whole site.', [
+            ['case' => 'SiteName', 'value' => 'site-name', 'label' => 'Site Name', 'default' => "config('app.name')"],
+        ]));
     }
 
     /**
@@ -197,51 +154,5 @@ class InstallSettings extends Command
     protected function findMigration(Filesystem $files): ?string
     {
         return $files->glob(database_path('migrations/*_create_settings_table.php'))[0] ?? null;
-    }
-
-    /**
-     * Determine whether a table exists, treating an unreachable database as "no".
-     *
-     * @label Table Exists
-     *
-     * @param  string  $table  The table to look for, e.g. settings
-     */
-    protected function tableExists(string $table): bool
-    {
-        try {
-            return Schema::hasTable($table);
-        } catch (QueryException) {
-            // No database yet (a fresh project): there is nothing to collide with.
-            return false;
-        }
-    }
-
-    /**
-     * Determine whether to run the migration now.
-     *
-     * @label Should Migrate
-     */
-    protected function shouldMigrate(): bool
-    {
-        if ($this->option('migrate')) {
-            return true;
-        }
-
-        // Without a terminal, only --migrate runs it, so scripts and CI never
-        // migrate by surprise.
-        return $this->input->isInteractive()
-            && $this->confirm('Run the settings migration now?', true);
-    }
-
-    /**
-     * Get a path relative to the application root, for display.
-     *
-     * @label Relative Path
-     *
-     * @param  string  $path  The full path, e.g. /var/www/app/Enums/Settings/Setting.php
-     */
-    protected function relativePath(string $path): string
-    {
-        return Str::after($path, base_path().DIRECTORY_SEPARATOR);
     }
 }

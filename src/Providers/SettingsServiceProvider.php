@@ -2,6 +2,7 @@
 
 namespace Coyote6\LaravelSettings\Providers;
 
+use Coyote6\LaravelSettings\Console\Commands\AddSettingType;
 use Coyote6\LaravelSettings\Console\Commands\InstallSettings;
 use Coyote6\LaravelSettings\OwnerResolvers;
 use Coyote6\LaravelSettings\SettingsManager;
@@ -59,6 +60,7 @@ class SettingsServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallSettings::class,
+                AddSettingType::class,
             ]);
         }
     }
